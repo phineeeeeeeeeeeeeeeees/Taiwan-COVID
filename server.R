@@ -36,6 +36,11 @@ COVID_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=3c1e263d-16ec-
     ) %>% 
     arrange(date_diagnostic) %>% 
     mutate(n_cases = ifelse(is.na(n_cases) , 0 , n_cases))
+summary_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=52eb9a7d-813d-48b1-b462-384a7c84a746&dataurl=https://od.cdc.gov.tw/eic/covid19/covid19_tw_stats.csv")
+tested_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=7ee40c7d-a14c-47b3-bf27-a5de4c278782&dataurl=https://od.cdc.gov.tw/eic/covid19/covid19_tw_specimen.csv") %>% 
+    #setNames(c("date" , "enhanced_surveillance" , "quarantine" , "reported_cases" , "total")) %>% 
+    mutate(通報日 = as_date(通報日)) %>% 
+    filter(通報日 <= Sys.Date())
 
 # Taiwan shapefile
 TWN_adm3 <- read_sf("data/Taiwan_adm3/TWN_adm3_4326.shp")
@@ -202,7 +207,23 @@ totalcases_adm3_sf <- COVID_df %>%
     select(adm2 , adm3 , n_cases , population , n_cases_population , geometry) %>% 
     st_as_sf()
 
-
+# =====================================
+# 5) tested curve
+# =====================================
+plot_total_tested <- tested_df %>% 
+    pivot_longer(cols = c("法定傳染病通報" , "居家檢疫送驗" , "擴大監測送驗") , 
+                 names_to = "Source" , values_to = "Number") %>% 
+    # visualization
+    ggplot(aes(x = 通報日)) +
+    geom_area(aes(y = Number , fill = Source)) +
+    geom_line(aes(y = Total) , alpha = 0.5) +
+    geom_point(aes(y = Total) , alpha = 0.5 , size = 0.5) +
+    labs(x = "通報日" , y = "每日送驗數" , 
+         title = "病毒檢測每日送驗數") +
+    scale_x_date(date_breaks = "1 month" , date_labels = "%Y/%m" , date_minor_breaks = "1 week") +
+    ggthemes::theme_economist_white() +
+    theme(text = element_text(family = "Noto Sans CJK TC") , 
+          axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 7))
 
 
 
@@ -212,6 +233,24 @@ totalcases_adm3_sf <- COVID_df %>%
 # compile server
 # =====================================
 function(input, output, session) {
+    
+    # table_summary
+    output$table_summary <- renderTable({
+        summary_df %>% 
+            select(`送驗` , `排除` , `昨日送驗` , `昨日排除`)
+    })
+    
+    # summary_total_confirmed
+    output$summary_total_confirmed <- renderText(summary_df$`確診`)
+    
+    # summary_yesterday_confirmed
+    output$summary_yesterday_confirmed <- renderText(summary_df$`昨日確診`)
+    
+    # summary_total_mortality
+    output$summary_total_mortality <- renderText(summary_df$`死亡`)
+    
+    # summary_total_recovered
+    output$summary_total_recovered <- renderText(summary_df$`解除隔離`)
     
     # plot_total_curve
     output$plot_total_curve <- renderPlotly({
@@ -223,6 +262,12 @@ function(input, output, session) {
     output$plot_age_gender <- renderPlotly({
         ggplotly(plot_age_gender) %>% 
             layout(legend = list(x = 0.8, y = 0.1 , font = list(size = 9)))
+    })
+    
+    # plot_tested
+    output$plot_tested <- renderPlotly({
+        ggplotly(plot_total_tested) %>% 
+            layout(legend = list(x = 0.05, y = 0.95 , font = list(size = 9)))
     })
     
     # table_incidence
@@ -431,7 +476,7 @@ function(input, output, session) {
     
     
     # plot_curve_selected_area
-    output$plot_curve_selected_area <- renderPlot({
+    output$plot_curve_selected_area <- renderPlotly({
         if(!is.null(input$map_covid_click)){
             # the selected point from the map
             selected_point <- data.frame(x = input$map_covid_shape_click$lng , 
@@ -460,10 +505,12 @@ function(input, output, session) {
                         theme(text = element_text(family = "Noto Sans CJK TC") , 
                               axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 7))
                     if(all(is.na(selected_adm_daily))){
-                        plot_selected_adm_daily + 
-                            labs(title = sprintf("%s無確診" , selected_adm$COUNTYNAME))
+                        ggplotly(
+                            plot_selected_adm_daily + 
+                                labs(title = sprintf("%s無確診" , selected_adm$COUNTYNAME))
+                        )
                     }else{
-                        plot_selected_adm_daily
+                        ggplotly(plot_selected_adm_daily)
                     }
                 }
             }else if(input$adm_level == "adm3"){
@@ -488,10 +535,12 @@ function(input, output, session) {
                         theme(text = element_text(family = "Noto Sans CJK TC") , 
                               axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 7))
                     if(all(is.na(selected_adm_daily))){
-                        plot_selected_adm_daily + 
-                            labs(title = sprintf("%s%s無確診" , selected_adm$COUNTYNAME , selected_adm$TOWNNAME))
+                        ggplotly({
+                            plot_selected_adm_daily + 
+                                labs(title = sprintf("%s%s無確診" , selected_adm$COUNTYNAME , selected_adm$TOWNNAME))
+                        })
                     }else{
-                        plot_selected_adm_daily
+                        ggplotly(plot_selected_adm_daily)
                     }
                 }
             }
