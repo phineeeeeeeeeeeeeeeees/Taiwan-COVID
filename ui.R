@@ -9,7 +9,10 @@
 # =====================================
 library(shiny)
 library(shinydashboard)
-library(leaflet)
+library(sf)
+library(dplyr) ; library(tidyr) 
+library(ggplot2) ; library(plotly) ; library(leaflet) ; library(ggsci)
+library(lubridate) ; library(stringr)
 
 # =====================================
 # UI

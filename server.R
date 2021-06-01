@@ -23,7 +23,7 @@ COVID_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=3c1e263d-16ec-
     setNames(c("disease" , "date_diagnostic" , "adm2" , "adm3" , "gender" , "imported" , "age" , "n_cases")) %>% 
     select(-disease) %>% 
     # cleaan table
-    mutate(date_diagnostic = as_date(as.character(date_diagnostic))) %>% 
+    mutate(date_diagnostic = lubridate::as_date(as.character(date_diagnostic))) %>% 
     mutate(adm2 = ifelse(adm2 == "空值" , NA , adm2) , 
            adm3 = ifelse(adm3 == "空值" , NA , adm3) , 
            imported = ifelse(imported == "是" , TRUE , FALSE)) %>% 
