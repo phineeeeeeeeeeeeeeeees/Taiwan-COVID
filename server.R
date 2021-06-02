@@ -12,12 +12,12 @@ library(sf)
 library(dplyr) ; library(tidyr) 
 library(ggplot2) ; library(plotly) ; library(leaflet) ; library(ggsci)
 library(lubridate) ; library(stringr)
-
+library(tabulizer) ; library(rvest)
 
 # =====================================
 # import data
 # =====================================
-# Covid dataset from CDC
+# 鄉鎮以年齡及性別分組確診數
 COVID_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=3c1e263d-16ec-4d70-b56c-21c9e2171fc7&dataurl=https://od.cdc.gov.tw/eic/Day_Confirmation_Age_County_Gender_19CoV.csv" , 
                      stringsAsFactors = FALSE) %>% 
     setNames(c("disease" , "date_diagnostic" , "adm2" , "adm3" , "gender" , "imported" , "age" , "n_cases")) %>% 
@@ -36,11 +36,41 @@ COVID_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=3c1e263d-16ec-
     ) %>% 
     arrange(date_diagnostic) %>% 
     mutate(n_cases = ifelse(is.na(n_cases) , 0 , n_cases))
+
+# 最新統計
 summary_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=52eb9a7d-813d-48b1-b462-384a7c84a746&dataurl=https://od.cdc.gov.tw/eic/covid19/covid19_tw_stats.csv")
+
+# 採檢送驗數
 tested_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=7ee40c7d-a14c-47b3-bf27-a5de4c278782&dataurl=https://od.cdc.gov.tw/eic/covid19/covid19_tw_specimen.csv") %>% 
     #setNames(c("date" , "enhanced_surveillance" , "quarantine" , "reported_cases" , "total")) %>% 
     mutate(通報日 = as_date(通報日)) %>% 
     filter(通報日 <= Sys.Date())
+
+
+# 疫苗統計資料
+# 先嘗試下載最新的資料 若不成功則用已下載下來的資料
+# try to download from CDC website
+download_vaccine_data_try <- FALSE
+while(!download_vaccine_data_try){
+    try({
+        source("get-vaccination-data.R")
+        download_vaccine_data_try <- TRUE
+    })
+}
+# if not successful: load local files
+if(!download_vaccine_data_try){
+    # all the files
+    in_files_vaccine <- list.files("data/vaccination" , full.names = TRUE , pattern = ".txt$|.csv")
+    # filter the files of the latest date
+    in_files_vaccine_date <- str_extract(in_files_vaccine , "\\d{4}-\\d{2}-\\d{2}") %>% as_date()
+    in_files_vaccine <- in_files_vaccine[str_detect(in_files_vaccine , as.character(max(in_files_vaccine_date)))]
+    # read the files
+    vaccine_df <- read.csv(grep(".csv$" , in_files_vaccine , value = TRUE) , stringsAsFactors = FALSE)
+    vaccine_today_date <- max(in_files_vaccine_date)
+    vaccine_date_update <- read.table(grep("metadata.txt$" , in_files_vaccine , value = TRUE) , 
+                                      sep = "," , header = TRUE , stringsAsFactors = FALSE)[1,1]
+}
+
 
 # Taiwan shapefile
 TWN_adm3 <- read_sf("data/Taiwan_adm3/TWN_adm3_4326.shp")
@@ -70,6 +100,25 @@ plot_total_curve <- COVID_df %>%
          title = "COVID-19全台灣每日新增確診數") +
     scale_x_date(date_breaks = "1 month" , date_labels = "%Y/%m" , date_minor_breaks = "1 week") +
     #scale_y_continuous(breaks = seq(0,700,100) , minor_breaks = seq(0,700,50)) +
+    ggthemes::theme_economist_white() +
+    theme(text = element_text(family = "Noto Sans CJK TC") , 
+          axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 7))
+plot_movingavg_curve <- COVID_df %>% 
+    group_by(date_diagnostic) %>% 
+    summarize(n_cases = sum(n_cases)) %>% 
+    ungroup() %>% 
+    arrange(date_diagnostic) %>% 
+    mutate(moving_average = zoo::rollapply(n_cases , 
+                                           width = 7 , 
+                                           FUN = mean , 
+                                           align = "right" , 
+                                           fill = NA)) %>% 
+    ggplot(aes(x = date_diagnostic)) +
+    geom_bar(aes(y = n_cases) , stat = "identity" , fill = "azure3") +
+    geom_line(aes(y = moving_average) , color = "deeppink3") +
+    labs(x = "個案研判日" , y = "總確診病例數" , 
+         title = "每日確診數七日移動平均") +
+    scale_x_date(date_breaks = "1 month" , date_labels = "%Y/%m" , date_minor_breaks = "1 week") +
     ggthemes::theme_economist_white() +
     theme(text = element_text(family = "Noto Sans CJK TC") , 
           axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 7))
@@ -225,8 +274,41 @@ plot_total_tested <- tested_df %>%
     theme(text = element_text(family = "Noto Sans CJK TC") , 
           axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 7))
 
+# =====================================
+# 6) vaccinatio  plot
+# =====================================
+plot_vaccination <- vaccine_df %>% 
+    # order adm2 by total vaccinated number
+    mutate(adm2 = factor(adm2 , levels = adm2[order(total_tilltoday , decreasing = FALSE)])) %>% 
+    # 
+    pivot_longer(cols = c(total_tillyesterday, today) , names_to = "time" , values_to = "vaccinated") %>% 
+    mutate(time = ifelse(time == "today" , "今日接種" , "昨日以前累計接種")) %>% 
+    # visualization
+    ggplot(aes(x = adm2 , y = vaccinated , fill = time)) +
+    geom_bar(stat = "identity" , position = "stack") +
+    coord_flip() +
+    labs(x = "縣市" , y = "接種人次" , fill = "接種日" , 
+         title = paste(vaccine_today_date , "累計接種人次") , 
+         subtitle = paste("資料統計截止時間:" , vaccine_date_update)) +
+    ggthemes::theme_fivethirtyeight() +
+    theme(text = element_text(family = "Noto Sans CJK TC") , 
+          axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 8) , 
+          axis.text.y = element_text(size = 8))
 
-
+plot_vaccination_delivered <- vaccine_df %>% 
+    # order adm2 by total vaccinated number
+    mutate(adm2 = factor(adm2 , levels = adm2[order(total_tilltoday , decreasing = FALSE)])) %>% 
+    # visualization
+    ggplot(aes(x = adm2 , y = delivered_tilltotday)) +
+    geom_bar(stat = "identity" , fill = "dodgerblue3") +
+    coord_flip() +
+    labs(x = "縣市" , y = "劑數" , 
+         title = paste(vaccine_today_date , "累計配送劑數") , 
+         subtitle = paste("資料統計截止時間:" , vaccine_date_update)) +
+    ggthemes::theme_fivethirtyeight() +
+    theme(text = element_text(family = "Noto Sans CJK TC") , 
+          axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 8) , 
+          axis.text.y = element_text(size = 8))
 
 
 # =====================================
@@ -254,8 +336,13 @@ function(input, output, session) {
     
     # plot_total_curve
     output$plot_total_curve <- renderPlotly({
-        ggplotly(plot_total_curve , tooltip = c("x" , "y")) %>% 
-            layout(legend = list(x = 0.05, y = 0.95 , font = list(size = 9)))
+        if(input$select_total_curve_variable == "total"){
+            ggplotly(plot_total_curve , tooltip = c("x" , "y")) %>% 
+                layout(legend = list(x = 0.05, y = 0.95 , font = list(size = 9)))
+        }else if(input$select_total_curve_variable == "movingavg"){
+            ggplotly(plot_movingavg_curve , tooltip = c("x" , "y")) %>% 
+                layout(legend = list(x = 0.05, y = 0.95 , font = list(size = 9)))
+        }
     })
     
     # plot_age_gender
@@ -281,7 +368,7 @@ function(input, output, session) {
             rename(`七日發生率` = incidence_7day , 
                    `七日確診數` = n_cases_7day , 
                    `縣市` = adm2 , `鄉鎮市區` = adm3) %>% 
-            slice(1:10)
+            slice(1:30)
     })
     output$table_incidence_date <- renderText({
         sprintf("發生率統計日期: %s" , max(incidence_daily_adm3$date_diagnostic))
@@ -555,6 +642,27 @@ function(input, output, session) {
             
         }
     })
+    
+    # vaccine_date_update
+    output$vaccine_date_update <- renderText(paste("資料統計截止時間:" , vaccine_date_update))
+    
+    # vaccinated_total
+    output$vaccinated_total <- renderText(sum(vaccine_df$total_tilltoday))
+    
+    # vaccinated_today
+    output$vaccinated_today <- renderText(sum(vaccine_df$today))
+    
+    # plot_vaccination
+    output$plot_vaccination <- renderPlotly({
+        if(input$vaccination_variable == "vaccinated" ){
+            ggplotly(plot_vaccination) %>% 
+                layout(legend = list(x = 0.6, y = 0.1 , font = list(size = 9)))
+        }else if(input$vaccination_variable == "delivered"){
+            ggplotly(plot_vaccination_delivered) %>% 
+                layout(legend = list(x = 0.6, y = 0.1 , font = list(size = 9)))
+        }
+    })
+    
     
     # # Route select input box
     # output$routeSelect <- renderUI({

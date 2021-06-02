@@ -8,15 +8,20 @@
 # required packages
 # =====================================
 library(shiny)
-library(shinydashboard)
+library(shinydashboard) ; library(shinycssloaders)
 library(sf)
 library(dplyr) ; library(tidyr) 
 library(ggplot2) ; library(plotly) ; library(leaflet) ; library(ggsci)
 library(lubridate) ; library(stringr)
+library(tabulizer) ; library(rvest)
+
 
 # =====================================
 # UI
 # =====================================
+# Options for Spinner
+options(spinner.color="#0275D8", spinner.color.background="#ffffff", spinner.size=2)
+
 header <- dashboardHeader(
     title = "嚴重特殊傳染性肺炎(COVID-19)資料平台" , titleWidth = 400
 )
@@ -49,7 +54,7 @@ body <- dashboardBody(
                             color = "light-blue") ) , 
                box(width = NULL, solidHeader = TRUE,
                    # map
-                   leafletOutput("map_covid", height = 450) , 
+                   withSpinner(leafletOutput("map_covid", height = 450) , type = 2) , 
                    # control panel 
                    # select variable: 7-day incidence/ accumulated cases/ num. new cases
                    # select date
@@ -75,7 +80,10 @@ body <- dashboardBody(
                       box(width = NULL, status = "warning" , 
                           p(strong("點擊地圖中的行政區顯示更多資訊")) , 
                           plotlyOutput("plot_curve_selected_area" , height = 300) , 
-                          tableHTML::tableHTML_output("table_selected_area") 
+                          tableHTML::tableHTML_output("table_selected_area") ,
+                          br() , 
+                          br() , 
+                          br()
                       )) , 
                column(width = 6 , 
                       box(width = NULL, status = "warning" , 
@@ -90,10 +98,36 @@ body <- dashboardBody(
                box(
                    width = NULL, status = "warning" , 
                    p(strong("全台疫情概況")) , 
-                   plotlyOutput("plot_total_curve" , height = 300) , 
-                   plotlyOutput("plot_age_gender" , height = 300) , 
-                   plotlyOutput("plot_tested" , height = 300) , 
+                   withSpinner(plotlyOutput("plot_total_curve" , height = 270) , type = 2) ,
+                   selectInput("select_total_curve_variable" , label = NULL , 
+                               choices = c("每日新增確診數(境外移入/本土個案)" = "total" , 
+                                           "每日確診數七日移動平均" = "movingavg") , 
+                               selected = c("每日新增確診數(境外移入/本土個案)" = "total")) , 
+                   plotlyOutput("plot_age_gender" , height = 270) , 
+                   plotlyOutput("plot_tested" , height = 220) , 
                    tableOutput("table_summary") 
+               ) , 
+               box(
+                 width = NULL, status = "warning" ,
+                 p(strong("疫苗接種現況")) , 
+                 valueBox(value = textOutput("vaccinated_total") , 
+                          subtitle = "累計接種" , 
+                          width = 6 , 
+                          icon = icon("syringe") , 
+                          color = "light-blue") , 
+                 valueBox(value = textOutput("vaccinated_today") , 
+                          subtitle = "本日接種" , 
+                          width = 6 , 
+                          icon = icon("syringe") , 
+                          color = "light-blue")
+               ) , 
+               box(
+                 width = NULL, status = "warning" , 
+                 selectInput("vaccination_variable" , label = NULL , 
+                             choices = c("累計接種人次" = "vaccinated" , "累計配送劑數" = "delivered") , 
+                             selected = c("累計接種人次" = "vaccinated")), 
+                 withSpinner(plotlyOutput("plot_vaccination" , height = 400) , type = 2) , 
+                 textOutput("vaccine_date_update")
                )
         # end of column
         )
