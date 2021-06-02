@@ -1,4 +1,4 @@
-<img src="resources/covid-icon.jpg/covid_icon.jpg" width = "50">
+<img src="https://github.com/phineeeeeeeeeeeeeeeees/Taiwan-COVID/blob/main/resources/covid_icon.jpg" width = "80">
 
 # Taiwan-COVID-Dashboard
 An R-Shiny based online application for up-to-date data aggregation and visualization of the COVID-19 epidemic in Taiwan based on government open data. 
@@ -6,6 +6,8 @@ An R-Shiny based online application for up-to-date data aggregation and visualiz
 
 ### Link to the dashboard: 
 https://tzeliliu.shinyapps.io/Taiwan-COVID19-dashboard/
+
+<img src="https://github.com/phineeeeeeeeeeeeeeeees/Taiwan-COVID/blob/main/resources/preview.png">
 
 ### This GitHub Repo contains the source code to retrieve, analyze, and visualize the data
 
