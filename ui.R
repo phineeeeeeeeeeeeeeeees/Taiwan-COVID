@@ -67,27 +67,46 @@ body <- dashboardBody(
                                              selected = c("鄉鎮市區" = "adm3")) ,
                                  radioButtons("select_variable" , "選擇疫情指標" , 
                                               choices = c("近七日發生率(每十萬人)" = "incidence" , 
-                                                          "累計確診數(每十萬人)" = "totalcase") , 
+                                                          "累計確診數(每十萬人)" = "totalcase" , 
+                                                          "單日新增確診數" = "newcases") , 
                                               selected = c("近七日發生率(每十萬人)" = "incidence")) , 
-                                 p(class = "text-muted" , "以上二指標皆只適用本土案例") , 
-                                 dateInput("select_date" , "選擇近七日發生率計算日期" , 
+                                 p(class = "text-muted" , "以上三指標皆只適用本土案例") , 
+                                 dateInput("select_date" , "指定特定日期資料" , 
                                            language = "zh-TW" , 
                                            value = as_date(Sys.Date())-2 , 
                                            min = as_date("2020-02-01") , 
                                            max = as_date(Sys.Date())-1))
                ),
                column(width = 6 , 
+                      # box: detail of the selected adm
                       box(width = NULL, status = "warning" , 
                           p(strong("點擊地圖中的行政區顯示更多資訊")) , 
-                          plotlyOutput("plot_curve_selected_area" , height = 300) , 
-                          tableHTML::tableHTML_output("table_selected_area") ,
+                          plotlyOutput("plot_curve_selected_area" , height = 300) ,
                           br() , 
-                          br() , 
-                          br()
-                      )) , 
-               column(width = 6 , 
+                          tableOutput("table_selected_area") , 
+                          p(class = "text-muted" , "單日新增確診之日期為地圖所選日期") ,
+                          br() ), 
+                      # box: data source
                       box(width = NULL, status = "warning" , 
-                          p(strong("行政區依七日發生率排序")) , 
+                          p(strong("資料來源")) , 
+                          data.frame(
+                            source = c("https://data.cdc.gov.tw/dataset/agsdctable-day-19cov" , 
+                                       "https://data.cdc.gov.tw/dataset/daily-cases-suspected-sars-cov-2-infection_tested" , 
+                                       "https://www.cdc.gov.tw/Category/Page/9jFXNbCe-sFK9EImRRi2Og" , 
+                                       "ris.gov.tw/app/portal/346") , 
+                            row.names = c("地區年齡性別統計表" , 
+                                          "台灣COVID-19冠狀病毒檢測每日送驗數" , 
+                                          "COVID-19疫苗統計資料" , 
+                                          "內政部2021年4月鄉鎮戶數及人口數")
+                          ) %>% tableHTML::tableHTML() , 
+                          br()
+                          )
+                      ) , 
+               column(width = 6 , 
+                      # box: adm by incidence
+                      box(width = NULL, status = "warning" , 
+                          p(strong("行政區依七日發生率排序")) ,
+                          p(class = "text-muted" , "(近七日每十萬人確診人數)") , 
                           textOutput("table_incidence_date") , 
                           tableOutput("table_incidence" )
                       ))
@@ -104,12 +123,12 @@ body <- dashboardBody(
                                            "每日確診數七日移動平均" = "movingavg") , 
                                selected = c("每日新增確診數(境外移入/本土個案)" = "total")) , 
                    plotlyOutput("plot_age_gender" , height = 270) , 
-                   plotlyOutput("plot_tested" , height = 220) , 
+                   plotlyOutput("plot_tested" , height = 270) , 
                    tableOutput("table_summary") 
                ) , 
                box(
                  width = NULL, status = "warning" ,
-                 p(strong("疫苗接種現況")) , 
+                 p(strong("全台疫苗接種現況")) , 
                  valueBox(value = textOutput("vaccinated_total") , 
                           subtitle = "累計接種" , 
                           width = 6 , 
@@ -123,6 +142,7 @@ body <- dashboardBody(
                ) , 
                box(
                  width = NULL, status = "warning" , 
+                 p(strong("各縣市疫苗接種情形")) , 
                  selectInput("vaccination_variable" , label = NULL , 
                              choices = c("累計接種人次" = "vaccinated" , "累計配送劑數" = "delivered") , 
                              selected = c("累計接種人次" = "vaccinated")), 
@@ -133,10 +153,6 @@ body <- dashboardBody(
         )
     ) , # end of fluidRow 
     hr() , 
-    p(class = "text-muted",
-      "確診資料及檢驗資料來源: 疾病管制署 (data.cdc.gov.tw/dataset/agsdctable-day-19cov, data.cdc.gov.tw/dataset/daily-cases-suspected-sars-cov-2-infection_tested)" ) , 
-    p(class = "text-muted" , 
-      "行政區人口數資料來源: 內政部2021年4月鄉鎮戶數及人口數(ris.gov.tw/app/portal/346)") , 
     p(class = "text-muted" , "Author: Tze-Li Liu (若有建議或疑問歡迎不吝指教 tze-li.liu@swisstph.ch)")
 ) # end of dashboardBody
 

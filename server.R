@@ -275,7 +275,7 @@ plot_total_tested <- tested_df %>%
           axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 7))
 
 # =====================================
-# 6) vaccinatio  plot
+# 6) vaccination  plot
 # =====================================
 plot_vaccination <- vaccine_df %>% 
     # order adm2 by total vaccinated number
@@ -458,6 +458,55 @@ function(input, output, session) {
                               opacity = 0.7, 
                               title = "累計確診人數(每十萬人)",
                               position = "bottomright")
+            }else if(input$select_variable == "newcases"){
+                newcases_adm2_sf <- COVID_df %>% 
+                    filter(imported == FALSE) %>% 
+                    filter(date_diagnostic == selected_date) %>% 
+                    group_by(adm2) %>% 
+                    summarize(n_cases = sum(n_cases)) %>% 
+                    ungroup() %>% 
+                    right_join(TWN_adm2 , by = c("adm2" = "COUNTYNAME")) %>% 
+                    mutate(n_cases = ifelse(is.na(n_cases) , 0 , n_cases)) %>% 
+                    st_as_sf() %>% 
+                    arrange(n_cases)
+                # visualization
+                label_newcase <- sprintf("%s%s新增確診%s例" , 
+                                         newcases_adm2_sf$adm2 ,
+                                         selected_date , 
+                                         newcases_adm2_sf$n_cases)
+                newcases_adm2_sf %>% 
+                    leaflet(options = leafletOptions(minZoom = 6 , maxZoom = 11)) %>% 
+                    setView(120.972812 , 23.847964, 7) %>% 
+                    addProviderTiles("CartoDB.VoyagerNoLabels") %>% 
+                    addPolygons(
+                        fillColor = "white" , 
+                        weight = 0.5 , 
+                        fillOpacity = 0.1 , 
+                        color = "black" , 
+                        highlight = highlightOptions(
+                            weight = 3,
+                            color = "#666",
+                            fillOpacity = 0.7,
+                            bringToFront = FALSE) 
+                    ) %>% 
+                    addCircles(
+                        data = newcases_adm2_sf %>% 
+                            st_centroid() , 
+                        radius = ~(n_cases*50000)^0.62 , 
+                        fillColor = "red" , 
+                        fillOpacity = 0.5 , 
+                        stroke = FALSE , 
+                        highlight = highlightOptions(
+                            weight = 3,
+                            color = "#666",
+                            fillOpacity = 0.5,
+                            bringToFront = TRUE) , 
+                        label = label_newcase , 
+                        labelOptions = labelOptions(
+                            style = list("font-weight" = "normal", padding = "3px 8px"),
+                            textsize = "12px",
+                            direction = "auto")
+                    ) 
             }
         }else if(input$adm_level == "adm3"){
             if(input$select_variable == "incidence"){
@@ -557,6 +606,63 @@ function(input, output, session) {
                               opacity = 0.7, 
                               title = "累計確診人數(每十萬人)",
                               position = "bottomright")
+            }else if(input$select_variable == "newcases"){
+                newcases_adm3_sf <- COVID_df %>% 
+                    filter(imported == FALSE) %>% 
+                    filter(date_diagnostic == selected_date) %>% 
+                    group_by(adm2 , adm3) %>% 
+                    summarize(n_cases = sum(n_cases)) %>% 
+                    ungroup() %>% 
+                    right_join(TWN_adm3 , by = c("adm2" = "COUNTYNAME" , "adm3" = "TOWNNAME")) %>% 
+                    mutate(n_cases = ifelse(is.na(n_cases) , 0 , n_cases)) %>% 
+                    st_as_sf() %>% 
+                    arrange(n_cases)
+                # visualization
+                label_newcase <- sprintf("%s%s%s新增確診%s例" , 
+                                         newcases_adm3_sf$adm2 , 
+                                         newcases_adm3_sf$adm3 , 
+                                         selected_date , 
+                                         newcases_adm3_sf$n_cases)
+                newcases_adm3_sf %>% 
+                    leaflet(options = leafletOptions(minZoom = 6 , maxZoom = 11)) %>% 
+                    setView(120.972812 , 23.847964, 7) %>% 
+                    addProviderTiles("CartoDB.VoyagerNoLabels") %>% 
+                    addPolygons(
+                        fillColor = "white" , 
+                        weight = 0.5 , 
+                        fillOpacity = 0.1 , 
+                        color = "black" , 
+                        highlight = highlightOptions(
+                            weight = 3,
+                            color = "#666",
+                            fillOpacity = 0.7,
+                            bringToFront = FALSE) 
+                    ) %>%
+                    addPolygons(
+                        data = TWN_adm2 , 
+                        fill = NA , 
+                        weight = 1 , 
+                        opacity = 0.3 , 
+                        color = "black"
+                    ) %>% 
+                    addCircles(
+                        data = newcases_adm3_sf %>% 
+                            st_centroid() , 
+                        radius = ~(n_cases*80000)^0.55 , 
+                        fillColor = "red" , 
+                        fillOpacity = 0.5 , 
+                        stroke = FALSE , 
+                        highlight = highlightOptions(
+                            weight = 3,
+                            color = "#666",
+                            fillOpacity = 0.5,
+                            bringToFront = TRUE) , 
+                        label = label_newcase , 
+                        labelOptions = labelOptions(
+                            style = list("font-weight" = "normal", padding = "3px 8px"),
+                            textsize = "12px",
+                            direction = "auto")
+                    ) 
             }
         }
     })
@@ -635,11 +741,101 @@ function(input, output, session) {
     })
     
     # table_selected_area
-    output$table_selected_area <- tableHTML::render_tableHTML({
-        if(input$adm_level == "adm2"){
-            
-        }else if(input$adm_level == "adm3"){
-            
+    output$table_selected_area <- renderTable({
+        selected_date <- input$select_date
+        if(!is.null(input$map_covid_click)){
+            # the selected point from the map
+            selected_point <- data.frame(x = input$map_covid_shape_click$lng , 
+                                         y = input$map_covid_shape_click$lat) %>% 
+                st_as_sf(coords = c("x","y")) %>% 
+                st_set_crs(st_crs(TWN_adm2))
+            if(input$adm_level == "adm2"){
+                # check in which administration zone the selected point locates
+                contains_selected_point <- st_contains(TWN_adm2 , selected_point , sparse = FALSE)
+                # make the plot with valid selected points (within at least one zone)
+                if(any(contains_selected_point)){
+                    selected_adm <- TWN_adm2 %>% 
+                        filter(contains_selected_point) %>% 
+                        select(COUNTYNAME)
+                    # total cases
+                    selected_adm_total_cases <- COVID_df %>% 
+                        right_join(selected_adm , by = c("adm2" = "COUNTYNAME")) %>% 
+                        summarize(n_cases = sum(n_cases)) %>% 
+                        .$n_cases %>% 
+                        ifelse(is.na(.) , 0 , .)
+                    # new cases
+                    selected_adm_new_cases <- COVID_df %>% 
+                        right_join(selected_adm , by = c("adm2" = "COUNTYNAME")) %>% 
+                        filter(date_diagnostic == selected_date) %>% 
+                        summarize(n_cases = sum(n_cases)) %>% 
+                        .$n_cases %>% 
+                        ifelse(is.na(.) , 0 , .)
+                    # 7-day incidence
+                    selected_adm_incidence <- incidence_daily_adm3 %>% 
+                        right_join(selected_adm , by = c("adm2" = "COUNTYNAME")) %>% 
+                        filter(date_diagnostic == selected_date) %>% 
+                        .$incidence_7day %>% 
+                        ifelse(identical(numeric(0) , .) , 0 , .) %>% round(1)
+                    # population
+                    selected_adm_population <- population_adm2 %>% 
+                        right_join(selected_adm , by = c("adm2" = "COUNTYNAME")) %>% 
+                        .$population %>% 
+                        ifelse(is.na(.) , 0 , .)
+                    # output: data.frame
+                    data.frame(
+                        已點選行政區 = c("縣市" , "總確診數" , paste0(selected_date , "新增確診") , "近七日每十萬人確診數" , "總人口數") , 
+                        Detail = c(selected_adm$COUNTYNAME , 
+                                   selected_adm_total_cases , 
+                                   selected_adm_new_cases , 
+                                   selected_adm_incidence , 
+                                   selected_adm_population)
+                    ) 
+                }
+            }else if(input$adm_level == "adm3"){
+                # check in which administration zone the selected point locates
+                contains_selected_point <- st_contains(TWN_adm3 , selected_point , sparse = FALSE)
+                # make the plot with valid selected points (within at least one zone)
+                if(any(contains_selected_point)){
+                    selected_adm <- TWN_adm3 %>% 
+                        filter(contains_selected_point) %>% 
+                        select(COUNTYNAME , TOWNNAME)
+                    # total cases
+                    selected_adm_total_cases <- COVID_df %>% 
+                        right_join(selected_adm , by = c("adm2" = "COUNTYNAME" , "adm3" = "TOWNNAME")) %>% 
+                        summarize(n_cases = sum(n_cases)) %>% 
+                        .$n_cases %>% 
+                        ifelse(is.na(.) , 0 , .)
+                    # new cases
+                    selected_adm_new_cases <- COVID_df %>% 
+                        right_join(selected_adm , by = c("adm2" = "COUNTYNAME" , "adm3" = "TOWNNAME")) %>% 
+                        filter(date_diagnostic == selected_date) %>% 
+                        summarize(n_cases = sum(n_cases)) %>% 
+                        .$n_cases %>% 
+                        ifelse(is.na(.) , 0 , .)
+                    # 7-day incidence
+                    selected_adm_incidence <- incidence_daily_adm3 %>% 
+                        right_join(selected_adm , by = c("adm2" = "COUNTYNAME" , "adm3" = "TOWNNAME")) %>% 
+                        filter(date_diagnostic == selected_date) %>% 
+                        .$incidence_7day %>% 
+                        ifelse(identical(numeric(0) , .) , 0 , .) %>% round(1)
+                    # population
+                    selected_adm_population <- population_adm3 %>% 
+                        right_join(selected_adm , by = c("adm2" = "COUNTYNAME" , "adm3" = "TOWNNAME")) %>% 
+                        .$population %>% 
+                        ifelse(is.na(.) , 0 , .)
+                    # output: data.frame
+                    data.frame(
+                        已點選行政區 = c("縣市" , "鄉鎮市區" , "總確診數" , paste0(selected_date , "新增確診") , "近七日每十萬人確診數" , "總人口數") , 
+                        Detail = c(selected_adm$COUNTYNAME , 
+                                   selected_adm$TOWNNAME , 
+                                   selected_adm_total_cases , 
+                                   selected_adm_new_cases , 
+                                   selected_adm_incidence , 
+                                   selected_adm_population)
+                    ) 
+                }
+                
+            }
         }
     })
     

@@ -333,5 +333,116 @@ totalcases_adm3_sf <- COVID_df %>%
 }
 
 
+# =====================================
+# daily new cases for adm2 and adm3
+# =====================================
+# by adm2 -----------------------------
+newcases_adm2_sf <- COVID_df %>% 
+  filter(imported == FALSE) %>% 
+  filter(date_diagnostic == selected_date) %>% 
+  group_by(adm2) %>% 
+  summarize(n_cases = sum(n_cases)) %>% 
+  ungroup() %>% 
+  right_join(TWN_adm2 , by = c("adm2" = "COUNTYNAME")) %>% 
+  mutate(n_cases = ifelse(is.na(n_cases) , 0 , n_cases)) %>% 
+  st_as_sf() %>% 
+  arrange(n_cases)
+# visualization
+label_newcase <- sprintf("%s%s新增確診%s例" , 
+                         newcases_adm2_sf$adm2 ,
+                         selected_date , 
+                         newcases_adm2_sf$n_cases)
+newcases_adm2_sf %>% 
+  leaflet(options = leafletOptions(minZoom = 6 , maxZoom = 11)) %>% 
+  setView(120.972812 , 23.847964, 7) %>% 
+  addProviderTiles("CartoDB.VoyagerNoLabels") %>% 
+  addPolygons(
+    fillColor = "white" , 
+    weight = 0.5 , 
+    fillOpacity = 0.1 , 
+    color = "black" , 
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      fillOpacity = 0.7,
+      bringToFront = FALSE) 
+  ) %>% 
+  addCircles(
+    data = newcases_adm2_sf %>% 
+      st_centroid() , 
+    radius = ~(n_cases*50000)^0.62 , 
+    fillColor = "red" , 
+    fillOpacity = 0.5 , 
+    stroke = FALSE , 
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      fillOpacity = 0.5,
+      bringToFront = TRUE) , 
+    label = label_newcase , 
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "12px",
+      direction = "auto")
+  ) 
+
+# by adm3 -----------------------------
+newcases_adm3_sf <- COVID_df %>% 
+  filter(imported == FALSE) %>% 
+  filter(date_diagnostic == selected_date) %>% 
+  group_by(adm2 , adm3) %>% 
+  summarize(n_cases = sum(n_cases)) %>% 
+  ungroup() %>% 
+  right_join(TWN_adm3 , by = c("adm2" = "COUNTYNAME" , "adm3" = "TOWNNAME")) %>% 
+  mutate(n_cases = ifelse(is.na(n_cases) , 0 , n_cases)) %>% 
+  st_as_sf() %>% 
+  arrange(n_cases)
+# visualization
+label_newcase <- sprintf("%s%s%s新增確診%s例" , 
+                         newcases_adm3_sf$adm2 , 
+                         newcases_adm3_sf$adm3 , 
+                         selected_date , 
+                         newcases_adm3_sf$n_cases)
+newcases_adm3_sf %>% 
+  leaflet(options = leafletOptions(minZoom = 6 , maxZoom = 11)) %>% 
+  setView(120.972812 , 23.847964, 7) %>% 
+  addProviderTiles("CartoDB.VoyagerNoLabels") %>% 
+  addPolygons(
+    fillColor = "white" , 
+    weight = 0.5 , 
+    fillOpacity = 0.1 , 
+    color = "black" , 
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      fillOpacity = 0.7,
+      bringToFront = FALSE) 
+    ) %>%
+  addPolygons(
+    data = TWN_adm2 , 
+    fill = NA , 
+    weight = 1 , 
+    opacity = 0.3 , 
+    color = "black"
+  ) %>% 
+  addCircles(
+    data = newcases_adm3_sf %>% 
+      st_centroid() , 
+    radius = ~(n_cases*80000)^0.55 , 
+    fillColor = "red" , 
+    fillOpacity = 0.5 , 
+    stroke = FALSE , 
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      fillOpacity = 0.5,
+      bringToFront = TRUE) , 
+    label = label_newcase , 
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "12px",
+      direction = "auto")
+  ) 
+
 
 
