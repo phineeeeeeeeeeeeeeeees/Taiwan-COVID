@@ -80,25 +80,29 @@ body <- dashboardBody(
                column(width = 6 , 
                       # box: detail of the selected adm
                       box(width = NULL, status = "warning" , 
-                          p(strong("點擊地圖中的行政區顯示更多資訊")) , 
+                          p(strong("點選地圖中的行政區可顯示該行政區之詳細資訊")) , 
                           plotlyOutput("plot_curve_selected_area" , height = 300) ,
                           br() , 
                           tableOutput("table_selected_area") , 
-                          p(class = "text-muted" , "單日新增確診之日期為地圖所選日期") ,
+                          p(class = "text-muted" , "（單日新增確診之日期為地圖設定所選日期）") ,
                           br() ), 
                       # box: data source
                       box(width = NULL, status = "warning" , 
                           p(strong("資料來源")) , 
                           data.frame(
-                            source = c("https://data.cdc.gov.tw/dataset/agsdctable-day-19cov" , 
+                            source = c("https://data.cdc.gov.tw/dataset/covid19_tw__stats" ,
+                                       "https://data.cdc.gov.tw/dataset/agsdctable-day-19cov" , 
                                        "https://data.cdc.gov.tw/dataset/daily-cases-suspected-sars-cov-2-infection_tested" , 
                                        "https://www.cdc.gov.tw/Category/Page/9jFXNbCe-sFK9EImRRi2Og" , 
                                        "ris.gov.tw/app/portal/346") , 
-                            row.names = c("地區年齡性別統計表" , 
+                            row.names = c("COVID-19台灣最新病例與檢驗統計" , 
+                                          "地區年齡性別統計表" , 
                                           "台灣COVID-19冠狀病毒檢測每日送驗數" , 
                                           "COVID-19疫苗統計資料" , 
                                           "內政部2021年4月鄉鎮戶數及人口數")
                           ) %>% tableHTML::tableHTML() , 
+                          br() , 
+                          p(class = "text-muted" , "資料僅供參考 正式數據皆以疾管署為準") , 
                           br()
                           )
                       ) , 

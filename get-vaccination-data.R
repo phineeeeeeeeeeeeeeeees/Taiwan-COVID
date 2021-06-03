@@ -18,18 +18,24 @@ library(rvest)
 # link to the update vaccine daily report pdf file
 # =====================================
 url_CDC_page <- "https://www.cdc.gov.tw/Category/Page/9jFXNbCe-sFK9EImRRi2Og"
-url_vaccine <- url_CDC_page %>% 
-  # COVID-19疫苗統計資料網頁
-  read_html() %>% 
-  # 連結到附件
-  html_element(css = ".download a") %>% 
-  html_attr("href") %>% 
-  sprintf("https://www.cdc.gov.tw%s" , .) %>% # 開啟附件連結網址
-  # pdf預覽網頁
-  read_html() %>% 
-  # 取得"下載"連結
-  html_nodes("a") %>% html_attr("href") %>% # get href-class objects
-  sprintf("https://www.cdc.gov.tw%s" , .)
+{ # getting the .pdf link by web crawling is unstable (fails sometimes) --> try 5 times
+  url_vaccine_try <- 1
+  while(url_vaccine_try < 5){
+    url_vaccine <- url_CDC_page %>% 
+      # COVID-19疫苗統計資料網頁
+      read_html() %>% 
+      # 連結到附件
+      html_element(css = ".download a") %>% 
+      html_attr("href") %>% 
+      sprintf("https://www.cdc.gov.tw%s" , .) %>% # 開啟附件連結網址
+      # pdf預覽網頁
+      read_html() %>% 
+      # 取得"下載"連結
+      html_nodes("a") %>% html_attr("href") %>% # get href-class objects
+      sprintf("https://www.cdc.gov.tw%s" , .)
+    if(length(url_vaccine) != 0) break
+  }
+}
 # url_vaccine <- "https://www.cdc.gov.tw/Uploads/cc5adc0a-24c6-49ab-b99a-4ccbe8369113.pdf"
 
 # =====================================
@@ -77,5 +83,5 @@ data.frame(資料統計截止時間 = vaccine_date_update) %>%
               row.names = FALSE)
 
 # clean
-rm(url_CDC_page , url_vaccine , vaccine_temp_pdf)
+rm(url_CDC_page , url_vaccine , url_vaccine_try , vaccine_temp_pdf)
 

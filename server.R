@@ -18,7 +18,7 @@ library(tabulizer) ; library(rvest)
 # import data
 # =====================================
 # 鄉鎮以年齡及性別分組確診數
-COVID_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=3c1e263d-16ec-4d70-b56c-21c9e2171fc7&dataurl=https://od.cdc.gov.tw/eic/Day_Confirmation_Age_County_Gender_19CoV.csv" , 
+COVID_df <- read.csv("https://od.cdc.gov.tw/eic/Day_Confirmation_Age_County_Gender_19CoV.csv" , 
                      stringsAsFactors = FALSE) %>% 
     setNames(c("disease" , "date_diagnostic" , "adm2" , "adm3" , "gender" , "imported" , "age" , "n_cases")) %>% 
     select(-disease) %>% 
@@ -38,10 +38,10 @@ COVID_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=3c1e263d-16ec-
     mutate(n_cases = ifelse(is.na(n_cases) , 0 , n_cases))
 
 # 最新統計
-summary_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=52eb9a7d-813d-48b1-b462-384a7c84a746&dataurl=https://od.cdc.gov.tw/eic/covid19/covid19_tw_stats.csv")
+summary_df <- read.csv("https://od.cdc.gov.tw/eic/covid19/covid19_tw_stats.csv")
 
 # 採檢送驗數
-tested_df <- read.csv("https://data.cdc.gov.tw/download?resourceid=7ee40c7d-a14c-47b3-bf27-a5de4c278782&dataurl=https://od.cdc.gov.tw/eic/covid19/covid19_tw_specimen.csv") %>% 
+tested_df <- read.csv("https://od.cdc.gov.tw/eic/covid19/covid19_tw_specimen.csv") %>% 
     #setNames(c("date" , "enhanced_surveillance" , "quarantine" , "reported_cases" , "total")) %>% 
     mutate(通報日 = as_date(通報日)) %>% 
     filter(通報日 <= Sys.Date())
@@ -67,9 +67,10 @@ if(!download_vaccine_data_try){
     # read the files
     vaccine_df <- read.csv(grep(".csv$" , in_files_vaccine , value = TRUE) , stringsAsFactors = FALSE)
     vaccine_today_date <- max(in_files_vaccine_date)
-    vaccine_date_update <- read.table(grep("metadata.txt$" , in_files_vaccine , value = TRUE) , 
+    vaccine_date_update <- read.table(grep("metadata.txt$" , in_files_vaccine , value = TRUE) ,
                                       sep = "," , header = TRUE , stringsAsFactors = FALSE)[1,1]
 }
+
 
 
 # Taiwan shapefile
@@ -323,16 +324,16 @@ function(input, output, session) {
     })
     
     # summary_total_confirmed
-    output$summary_total_confirmed <- renderText(summary_df$`確診`)
+    output$summary_total_confirmed <- renderText(prettyNum(summary_df$`確診` , big.mark = ","))
     
     # summary_yesterday_confirmed
-    output$summary_yesterday_confirmed <- renderText(summary_df$`昨日確診`)
+    output$summary_yesterday_confirmed <- renderText(prettyNum(summary_df$`昨日確診` , big.mark = ","))
     
     # summary_total_mortality
-    output$summary_total_mortality <- renderText(summary_df$`死亡`)
+    output$summary_total_mortality <- renderText(prettyNum(summary_df$`死亡` , ","))
     
     # summary_total_recovered
-    output$summary_total_recovered <- renderText(summary_df$`解除隔離`)
+    output$summary_total_recovered <- renderText(prettyNum(summary_df$`解除隔離` , ","))
     
     # plot_total_curve
     output$plot_total_curve <- renderPlotly({
@@ -843,10 +844,10 @@ function(input, output, session) {
     output$vaccine_date_update <- renderText(paste("資料統計截止時間:" , vaccine_date_update))
     
     # vaccinated_total
-    output$vaccinated_total <- renderText(sum(vaccine_df$total_tilltoday))
+    output$vaccinated_total <- renderText(sum(vaccine_df$total_tilltoday) %>% prettyNum(big.mark = ","))
     
     # vaccinated_today
-    output$vaccinated_today <- renderText(sum(vaccine_df$today))
+    output$vaccinated_today <- renderText(sum(vaccine_df$today) %>% prettyNum(big.mark = ","))
     
     # plot_vaccination
     output$plot_vaccination <- renderPlotly({
