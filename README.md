@@ -7,7 +7,7 @@ An R-Shiny based online application for up-to-date data aggregation and visualiz
 ### Link to the dashboard: 
 https://tzeliliu.shinyapps.io/Taiwan-COVID19-dashboard/
 
-<img src="https://github.com/phineeeeeeeeeeeeeeeees/Taiwan-COVID/blob/main/resources/preview.png">
+<img src="https://github.com/phineeeeeeeeeeeeeeeees/Taiwan-COVID/blob/main/resources/app_preview.png">
 
 ### This GitHub Repo contains the source code to retrieve, analyze, and visualize the data
 
