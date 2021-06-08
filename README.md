@@ -5,7 +5,7 @@ An R-Shiny based online application for up-to-date data aggregation and visualiz
 整合政府開放資料，提供嚴重特殊傳染性肺炎(COVID-19)台灣疫情即時資訊整理與視覺化
 
 ### Link to the dashboard: 
-https://tzeliliu.shinyapps.io/Taiwan-COVID19-dashboard/
+[https://tzeliliu.shinyapps.io/Taiwan-COVID19-dashboard/](https://tzeliliu.shinyapps.io/Taiwan-COVID/?fbclid=IwAR3r9BCdncRY6NXPRu1YWFKCND9XVmYbyXGH_v0E5O3SmOSxR3XD0_l7p1I)
 
 <img src="https://github.com/phineeeeeeeeeeeeeeeees/Taiwan-COVID/blob/main/resources/app_preview.png">
 
