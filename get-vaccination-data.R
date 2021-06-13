@@ -37,6 +37,7 @@ url_CDC_page <- "https://www.cdc.gov.tw/Category/Page/9jFXNbCe-sFK9EImRRi2Og"
   }
 }
 # url_vaccine <- "https://www.cdc.gov.tw/Uploads/cc5adc0a-24c6-49ab-b99a-4ccbe8369113.pdf"
+# url_vaccine <- "https://www.cdc.gov.tw/Uploads/802feb39-f452-4bc5-8c1c-f9c921b6f38f.pdf"
 
 # =====================================
 # download the latest vaccine daily report pdf file as temporary file

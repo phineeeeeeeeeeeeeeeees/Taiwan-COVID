@@ -51,12 +51,12 @@ tested_df <- read.csv("https://od.cdc.gov.tw/eic/covid19/covid19_tw_specimen.csv
 # 先嘗試下載最新的資料 若不成功則用已下載下來的資料
 # try to download from CDC website
 download_vaccine_data_try <- FALSE
-while(!download_vaccine_data_try){
-    try({
-        source("get-vaccination-data.R")
-        download_vaccine_data_try <- TRUE
-    })
-}
+# while(!download_vaccine_data_try){
+#     try({
+#         source("get-vaccination-data.R")
+#         download_vaccine_data_try <- TRUE
+#     })
+# }
 # if not successful: load local files
 if(!download_vaccine_data_try){
     # all the files
