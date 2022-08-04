@@ -38,7 +38,10 @@ COVID_df <- read.csv("https://od.cdc.gov.tw/eic/Day_Confirmation_Age_County_Gend
     mutate(n_cases = ifelse(is.na(n_cases) , 0 , n_cases))
 
 # 最新統計
-summary_df <- read.csv("https://od.cdc.gov.tw/eic/covid19/covid19_tw_stats.csv")
+summary_df <- read.csv("https://od.cdc.gov.tw/eic/covid19/covid19_tw_stats.csv") %>% 
+    # 內容轉換為數字 4,675,128 -> 4675128
+    mutate_all(.tbl = . , function(x){gsub(pattern = "," , replacement = "" , x = x) %>% as.character() %>% as.numeric()}) %>% 
+    mutate(`昨日陽性率` = 昨日確診/昨日送驗)
 
 # 採檢送驗數
 tested_df <- read.csv("https://od.cdc.gov.tw/eic/covid19/covid19_tw_specimen.csv") %>% 
@@ -50,7 +53,7 @@ tested_df <- read.csv("https://od.cdc.gov.tw/eic/covid19/covid19_tw_specimen.csv
 # 疫苗統計資料
 # 先嘗試下載最新的資料 若不成功則用已下載下來的資料
 # try to download from CDC website
-download_vaccine_data_try <- FALSE
+# download_vaccine_data_try <- FALSE
 # while(!download_vaccine_data_try){
 #     try({
 #         source("get-vaccination-data.R")
@@ -58,18 +61,18 @@ download_vaccine_data_try <- FALSE
 #     })
 # }
 # if not successful: load local files
-if(!download_vaccine_data_try){
-    # all the files
-    in_files_vaccine <- list.files("data/vaccination" , full.names = TRUE , pattern = ".txt$|.csv")
-    # filter the files of the latest date
-    in_files_vaccine_date <- str_extract(in_files_vaccine , "\\d{4}-\\d{2}-\\d{2}") %>% as_date()
-    in_files_vaccine <- in_files_vaccine[str_detect(in_files_vaccine , as.character(max(in_files_vaccine_date)))]
-    # read the files
-    vaccine_df <- read.csv(grep(".csv$" , in_files_vaccine , value = TRUE) , stringsAsFactors = FALSE)
-    vaccine_today_date <- max(in_files_vaccine_date)
-    vaccine_date_update <- read.table(grep("metadata.txt$" , in_files_vaccine , value = TRUE) ,
-                                      sep = "," , header = TRUE , stringsAsFactors = FALSE)[1,1]
-}
+# if(!download_vaccine_data_try){
+#     # all the files
+#     in_files_vaccine <- list.files("data/vaccination" , full.names = TRUE , pattern = ".txt$|.csv")
+#     # filter the files of the latest date
+#     in_files_vaccine_date <- str_extract(in_files_vaccine , "\\d{4}-\\d{2}-\\d{2}") %>% as_date()
+#     in_files_vaccine <- in_files_vaccine[str_detect(in_files_vaccine , as.character(max(in_files_vaccine_date)))]
+#     # read the files
+#     vaccine_df <- read.csv(grep(".csv$" , in_files_vaccine , value = TRUE) , stringsAsFactors = FALSE)
+#     vaccine_today_date <- max(in_files_vaccine_date)
+#     vaccine_date_update <- read.table(grep("metadata.txt$" , in_files_vaccine , value = TRUE) ,
+#                                       sep = "," , header = TRUE , stringsAsFactors = FALSE)[1,1]
+# }
 
 
 
@@ -113,7 +116,8 @@ plot_movingavg_curve <- COVID_df %>%
                                            width = 7 , 
                                            FUN = mean , 
                                            align = "right" , 
-                                           fill = NA)) %>% 
+                                           fill = NA) %>% 
+               round(1)) %>% 
     ggplot(aes(x = date_diagnostic)) +
     geom_bar(aes(y = n_cases) , stat = "identity" , fill = "azure3") +
     geom_line(aes(y = moving_average) , color = "deeppink3") +
@@ -217,7 +221,8 @@ incidence_daily_adm3 <- COVID_df %>%
     mutate(incidence_7day = n_cases_7day / population * 100000)
 
 
-
+# color bins for incidence
+bins_incidence <- c(0,50,100,250,500,1000,Inf)
 
 
 # =====================================
@@ -257,6 +262,9 @@ totalcases_adm3_sf <- COVID_df %>%
     select(adm2 , adm3 , n_cases , population , n_cases_population , geometry) %>% 
     st_as_sf()
 
+# color bins for accumulated cases
+bins_total_case <- c(0,500,2500,5000,10000,20000,50000,Inf)
+
 # =====================================
 # 5) tested curve
 # =====================================
@@ -276,40 +284,40 @@ plot_total_tested <- tested_df %>%
           axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 7))
 
 # =====================================
-# 6) vaccination  plot
+# 6) vaccination plot
 # =====================================
-plot_vaccination <- vaccine_df %>% 
-    # order adm2 by total vaccinated number
-    mutate(adm2 = factor(adm2 , levels = adm2[order(total_tilltoday , decreasing = FALSE)])) %>% 
-    # 
-    pivot_longer(cols = c(total_tillyesterday, today) , names_to = "time" , values_to = "vaccinated") %>% 
-    mutate(time = ifelse(time == "today" , "今日接種" , "昨日以前累計接種")) %>% 
-    # visualization
-    ggplot(aes(x = adm2 , y = vaccinated , fill = time)) +
-    geom_bar(stat = "identity" , position = "stack") +
-    coord_flip() +
-    labs(x = "縣市" , y = "接種人次" , fill = "接種日" , 
-         title = paste(vaccine_today_date , "累計接種人次") , 
-         subtitle = paste("資料統計截止時間:" , vaccine_date_update)) +
-    ggthemes::theme_fivethirtyeight() +
-    theme(text = element_text(family = "Noto Sans CJK TC") , 
-          axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 8) , 
-          axis.text.y = element_text(size = 8))
-
-plot_vaccination_delivered <- vaccine_df %>% 
-    # order adm2 by total vaccinated number
-    mutate(adm2 = factor(adm2 , levels = adm2[order(total_tilltoday , decreasing = FALSE)])) %>% 
-    # visualization
-    ggplot(aes(x = adm2 , y = delivered_tilltotday)) +
-    geom_bar(stat = "identity" , fill = "dodgerblue3") +
-    coord_flip() +
-    labs(x = "縣市" , y = "劑數" , 
-         title = paste(vaccine_today_date , "累計配送劑數") , 
-         subtitle = paste("資料統計截止時間:" , vaccine_date_update)) +
-    ggthemes::theme_fivethirtyeight() +
-    theme(text = element_text(family = "Noto Sans CJK TC") , 
-          axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 8) , 
-          axis.text.y = element_text(size = 8))
+# plot_vaccination <- vaccine_df %>% 
+#     # order adm2 by total vaccinated number
+#     mutate(adm2 = factor(adm2 , levels = adm2[order(total_tilltoday , decreasing = FALSE)])) %>% 
+#     # 
+#     pivot_longer(cols = c(total_tillyesterday, today) , names_to = "time" , values_to = "vaccinated") %>% 
+#     mutate(time = ifelse(time == "today" , "今日接種" , "昨日以前累計接種")) %>% 
+#     # visualization
+#     ggplot(aes(x = adm2 , y = vaccinated , fill = time)) +
+#     geom_bar(stat = "identity" , position = "stack") +
+#     coord_flip() +
+#     labs(x = "縣市" , y = "接種人次" , fill = "接種日" , 
+#          title = paste(vaccine_today_date , "累計接種人次") , 
+#          subtitle = paste("資料統計截止時間:" , vaccine_date_update)) +
+#     ggthemes::theme_fivethirtyeight() +
+#     theme(text = element_text(family = "Noto Sans CJK TC") , 
+#           axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 8) , 
+#           axis.text.y = element_text(size = 8))
+# 
+# plot_vaccination_delivered <- vaccine_df %>% 
+#     # order adm2 by total vaccinated number
+#     mutate(adm2 = factor(adm2 , levels = adm2[order(total_tilltoday , decreasing = FALSE)])) %>% 
+#     # visualization
+#     ggplot(aes(x = adm2 , y = delivered_tilltotday)) +
+#     geom_bar(stat = "identity" , fill = "dodgerblue3") +
+#     coord_flip() +
+#     labs(x = "縣市" , y = "劑數" , 
+#          title = paste(vaccine_today_date , "累計配送劑數") , 
+#          subtitle = paste("資料統計截止時間:" , vaccine_date_update)) +
+#     ggthemes::theme_fivethirtyeight() +
+#     theme(text = element_text(family = "Noto Sans CJK TC") , 
+#           axis.text.x = element_text(angle = 30 , vjust = 1 , hjust = 1 , size = 8) , 
+#           axis.text.y = element_text(size = 8))
 
 
 # =====================================
@@ -323,17 +331,18 @@ function(input, output, session) {
             select(`送驗` , `排除` , `昨日送驗` , `昨日排除`)
     })
     
-    # summary_total_confirmed
-    output$summary_total_confirmed <- renderText(prettyNum(summary_df$`確診` , big.mark = ","))
-    
     # summary_yesterday_confirmed
     output$summary_yesterday_confirmed <- renderText(prettyNum(summary_df$`昨日確診` , big.mark = ","))
+    
+    # summary_yesterday_proportion
+    output$summary_yesterday_proportion <- renderText(paste0(round(summary_df$`昨日陽性率`*100,1) , "%"))
+    
+    # summary_total_confirmed
+    output$summary_total_confirmed <- renderText(prettyNum(summary_df$`確診` , big.mark = ","))
     
     # summary_total_mortality
     output$summary_total_mortality <- renderText(prettyNum(summary_df$`死亡` , ","))
     
-    # summary_total_recovered
-    output$summary_total_recovered <- renderText(prettyNum(summary_df$`解除隔離` , ","))
     
     # plot_total_curve
     output$plot_total_curve <- renderPlotly({
@@ -393,7 +402,7 @@ function(input, output, session) {
                 pal_incidence_adm2 <- colorBin("YlOrRd", 
                                                domain = incidence_oneday_adm2_sf$incidence_7day , 
                                                na.color = "white" , 
-                                               bins = c(1,5,10,25,50,75,Inf))
+                                               bins = bins_incidence)
                 label_incidence_adm2 <- sprintf("%s\n近七日發生率=%s\n近七日新增確診=%s" , 
                                                 incidence_oneday_adm2_sf$COUNTYNAME , 
                                                 round(incidence_oneday_adm2_sf$incidence_7day,1), 
@@ -429,7 +438,7 @@ function(input, output, session) {
                 pal_totalcase_adm2 <- colorBin("RdPu", 
                                                domain = totalcases_adm2_sf$n_cases_population , 
                                                na.color = "white" , 
-                                               bins = c(1,10,25,50,75,100,150,Inf))
+                                               bins = bins_total_case)
                 label_totalcase_adm2 <- sprintf("%s: 每十萬人累計%s人確診 總確診人數=%s" , 
                                                 totalcases_adm2_sf$adm2 , 
                                                 round(totalcases_adm2_sf$n_cases_population,1), 
@@ -493,7 +502,7 @@ function(input, output, session) {
                     addCircles(
                         data = newcases_adm2_sf %>% 
                             st_centroid() , 
-                        radius = ~(n_cases*50000)^0.62 , 
+                        radius = ~(n_cases*50000)^0.6 , 
                         fillColor = "red" , 
                         fillOpacity = 0.5 , 
                         stroke = FALSE , 
@@ -525,7 +534,7 @@ function(input, output, session) {
                 pal_incidence_adm3 <- colorBin("YlOrRd", 
                                                domain = incidence_oneday_adm3_sf$incidence_7day , 
                                                na.color = "white" , 
-                                               bins = c(1,5,10,25,50,75,Inf))
+                                               bins = bins_incidence)
                 label_incidence_adm3 <- sprintf("%s%s: \n近七日發生率=%s\n近七日新增確診=%s" , 
                                                 incidence_oneday_adm3_sf$COUNTYNAME , 
                                                 incidence_oneday_adm3_sf$TOWNNAME , 
@@ -569,7 +578,7 @@ function(input, output, session) {
                 pal_totalcase_adm3 <- colorBin("RdPu", 
                                                domain = totalcases_adm3_sf$n_cases_population , 
                                                na.color = "white" , 
-                                               bins = c(1,10,25,50,75,100,150,Inf))
+                                               bins = bins_total_case)
                 label_totalcase_adm3 <- sprintf("%s%s: 每十萬人累計%s人確診 總確診人數=%s" , 
                                                 totalcases_adm3_sf$adm2 , 
                                                 totalcases_adm3_sf$adm3 , 
@@ -649,7 +658,7 @@ function(input, output, session) {
                     addCircles(
                         data = newcases_adm3_sf %>% 
                             st_centroid() , 
-                        radius = ~(n_cases*80000)^0.55 , 
+                        radius = ~(n_cases*80000)^0.45 , 
                         fillColor = "red" , 
                         fillOpacity = 0.5 , 
                         stroke = FALSE , 
@@ -840,36 +849,25 @@ function(input, output, session) {
         }
     })
     
-    # vaccine_date_update
-    output$vaccine_date_update <- renderText(paste("資料統計截止時間:" , vaccine_date_update))
-    
-    # vaccinated_total
-    output$vaccinated_total <- renderText(sum(vaccine_df$total_tilltoday) %>% prettyNum(big.mark = ","))
-    
-    # vaccinated_today
-    output$vaccinated_today <- renderText(sum(vaccine_df$today) %>% prettyNum(big.mark = ","))
-    
-    # plot_vaccination
-    output$plot_vaccination <- renderPlotly({
-        if(input$vaccination_variable == "vaccinated" ){
-            ggplotly(plot_vaccination) %>% 
-                layout(legend = list(x = 0.6, y = 0.1 , font = list(size = 9)))
-        }else if(input$vaccination_variable == "delivered"){
-            ggplotly(plot_vaccination_delivered) %>% 
-                layout(legend = list(x = 0.6, y = 0.1 , font = list(size = 9)))
-        }
-    })
-    
-    
-    # # Route select input box
-    # output$routeSelect <- renderUI({
-    #     live_vehicles <- getMetroData("VehicleLocations/0")
-    #     
-    #     routeNums <- sort(unique(as.numeric(live_vehicles$Route)))
-    #     # Add names, so that we can add all=0
-    #     names(routeNums) <- routeNums
-    #     routeNums <- c(All = 0, routeNums)
-    #     selectInput("routeNum", "Route", choices = routeNums, selected = routeNums[2])
+    # # vaccine_date_update
+    # output$vaccine_date_update <- renderText(paste("資料統計截止時間:" , vaccine_date_update))
+    # 
+    # # vaccinated_total
+    # output$vaccinated_total <- renderText(sum(vaccine_df$total_tilltoday) %>% prettyNum(big.mark = ","))
+    # 
+    # # vaccinated_today
+    # output$vaccinated_today <- renderText(sum(vaccine_df$today) %>% prettyNum(big.mark = ","))
+    # 
+    # # plot_vaccination
+    # output$plot_vaccination <- renderPlotly({
+    #     if(input$vaccination_variable == "vaccinated" ){
+    #         ggplotly(plot_vaccination) %>% 
+    #             layout(legend = list(x = 0.6, y = 0.1 , font = list(size = 9)))
+    #     }else if(input$vaccination_variable == "delivered"){
+    #         ggplotly(plot_vaccination_delivered) %>% 
+    #             layout(legend = list(x = 0.6, y = 0.1 , font = list(size = 9)))
+    #     }
     # })
+    
     
 }

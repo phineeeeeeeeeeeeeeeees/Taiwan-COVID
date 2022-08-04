@@ -32,25 +32,26 @@ body <- dashboardBody(
         column(width = 8,
                # map box (COVID map)
                box(width = NULL, status = "warning" , 
-                   valueBox(value = textOutput("summary_total_confirmed") , 
-                            subtitle = "累計確診" , 
-                            width = 3 , 
-                            icon = icon("stethoscope") , 
-                            color = "light-blue") , 
                    valueBox(value = textOutput("summary_yesterday_confirmed") , 
                             subtitle = "昨日確診" , 
                             width = 3 , 
                             icon = icon("ambulance") , 
                             color = "light-blue") , 
+                   valueBox(value = textOutput("summary_yesterday_proportion") , 
+                            subtitle = "昨日陽性率" , 
+                            width = 3 , 
+                            icon = icon("walking") , 
+                            color = "light-blue") ,
+                   valueBox(value = textOutput("summary_total_confirmed") , 
+                            subtitle = "累計確診" , 
+                            width = 3 , 
+                            icon = icon("stethoscope") , 
+                            color = "light-blue") , 
+                   
                    valueBox(value = textOutput("summary_total_mortality") , 
                             subtitle = "累計死亡" , 
                             width = 3 , 
                             icon = icon("biohazard") , 
-                            color = "light-blue") , 
-                   valueBox(value = textOutput("summary_total_recovered") , 
-                            subtitle = "解除隔離" , 
-                            width = 3 , 
-                            icon = icon("walking") , 
                             color = "light-blue") ) , 
                box(width = NULL, solidHeader = TRUE,
                    # map
@@ -129,35 +130,35 @@ body <- dashboardBody(
                    plotlyOutput("plot_age_gender" , height = 270) , 
                    plotlyOutput("plot_tested" , height = 270) , 
                    tableOutput("table_summary") 
-               ) , 
-               box(
-                 width = NULL, status = "warning" ,
-                 p(strong("全台疫苗接種現況")) , 
-                 valueBox(value = textOutput("vaccinated_total") , 
-                          subtitle = "累計接種" , 
-                          width = 6 , 
-                          icon = icon("syringe") , 
-                          color = "light-blue") , 
-                 valueBox(value = textOutput("vaccinated_today") , 
-                          subtitle = "本日接種" , 
-                          width = 6 , 
-                          icon = icon("syringe") , 
-                          color = "light-blue")
-               ) , 
-               box(
-                 width = NULL, status = "warning" , 
-                 p(strong("各縣市疫苗接種情形")) , 
-                 selectInput("vaccination_variable" , label = NULL , 
-                             choices = c("累計接種人次" = "vaccinated" , "累計配送劑數" = "delivered") , 
-                             selected = c("累計接種人次" = "vaccinated")), 
-                 withSpinner(plotlyOutput("plot_vaccination" , height = 400) , type = 2) , 
-                 textOutput("vaccine_date_update")
-               )
+               ) # , 
+               # box(
+               #   width = NULL, status = "warning" ,
+               #   p(strong("全台疫苗接種現況")) , 
+               #   valueBox(value = textOutput("vaccinated_total") , 
+               #            subtitle = "累計接種" , 
+               #            width = 6 , 
+               #            icon = icon("syringe") , 
+               #            color = "light-blue") , 
+               #   valueBox(value = textOutput("vaccinated_today") , 
+               #            subtitle = "本日接種" , 
+               #            width = 6 , 
+               #            icon = icon("syringe") , 
+               #            color = "light-blue")
+               # ) , 
+               # box(
+               #   width = NULL, status = "warning" , 
+               #   p(strong("各縣市疫苗接種情形")) , 
+               #   selectInput("vaccination_variable" , label = NULL , 
+               #               choices = c("累計接種人次" = "vaccinated" , "累計配送劑數" = "delivered") , 
+               #               selected = c("累計接種人次" = "vaccinated")), 
+               #   withSpinner(plotlyOutput("plot_vaccination" , height = 400) , type = 2) , 
+               #   textOutput("vaccine_date_update")
+               # )
         # end of column
         )
     ) , # end of fluidRow 
     hr() , 
-    p(class = "text-muted" , "Author: Tze-Li Liu (若有建議或疑問歡迎不吝指教 tze-li.liu@swisstph.ch)")
+    p(class = "text-muted" , "Author: Tze-Li Liu (若有建議或疑問歡迎不吝指教 tze-li.liu@gmail.com)")
 ) # end of dashboardBody
 
 # =====================================
